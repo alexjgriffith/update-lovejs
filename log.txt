@@ -1,3 +1,6 @@
+## This document contains an overview of the bugs run into when compiling with different versions of emsdk
+
+
 1. [X] Review changes to love.js, love-emscripten and megasource-emscripten
 2. [X] Pull latest love.js onto my fork of love.js
 3. [X] Update 11.5 branch of love-emscripten and love megasource-emscripten to align with love 11.5

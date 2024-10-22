@@ -7,3 +7,9 @@
 [submodule "love"]
 	path = love
 	url = git@github.com:alexjgriffith/love.git
+[submodule "fennellovejs"]
+	path = fennellovejs
+	url = git@github.com:alexjgriffith/fennellovejs.git
+[submodule "emsdk"]
+	path = emsdk
+	url = https://github.com/emscripten-core/emsdk.git
