@@ -1,0 +1,9 @@
+[submodule "love.js"]
+	path = love.js
+	url = git@github.com:alexjgriffith/love.js.git
+[submodule "megasource"]
+	path = megasource
+	url = git@github.com:alexjgriffith/megasource.git
+[submodule "love"]
+	path = love
+	url = git@github.com:alexjgriffith/love.git
