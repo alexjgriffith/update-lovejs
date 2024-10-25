@@ -1,4 +1,4 @@
-The purpose of this repo is to hold lovejs wasm and js artifacts
+The purpose of this repo is to hold lovejs wasm and js artifacts and patches.
 
 ## Updating Patches for LoveJS
 Follow the steps below to update the love.js love branch and megasource forks. 
@@ -17,6 +17,8 @@ Create a patch
 ## git format-patch -<n> <SHA-1> --stdout > <name_of_patch_file>.patch
 ## If you've packed all your commits into a single commit
 git format-patch -1 HEAD --stdout lovejs-11.x.patch
+## otherwise
+git format-patch <mainlinesha>..<patchedsha> --stdout > foo.patch
 ```
 
 Apply a patch

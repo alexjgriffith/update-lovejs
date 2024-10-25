@@ -1,0 +1,946 @@
+From 16714035d825733e5a64322a7d7db6b93160e183 Mon Sep 17 00:00:00 2001
+From: alexjgriffith <griffitaj@gmail.com>
+Date: Fri, 10 May 2024 00:09:02 -0400
+Subject: [PATCH 1/4] 11.5 working with emscripten 2.0.0
+
+---
+ .github/workflows/deps-test.yml              |  29 ----
+ .gitignore                                   |   2 +-
+ CMakeLists.txt                               |  48 +++---
+ libs/libmodplug-0.8.8.4/CMakeLists.txt       |   2 +-
+ libs/libogg-1.3.2/CMakeLists.txt             |  34 ++++
+ libs/libogg-1.3.2/include/ogg/config_types.h |  25 +++
+ libs/lua-5.1.5/CMakeLists.txt                |   2 +-
+ libs/mpg123-1.25.6/CMakeLists.txt            |  89 ++++++++++-
+ libs/mpg123-1.25.6/src/compat/compat.c       |   2 +
+ libs/mpg123-1.25.6/src/config.h.in           | 154 ++++++++++---------
+ readme.md                                    |  62 +-------
+ 11 files changed, 262 insertions(+), 187 deletions(-)
+ delete mode 100644 .github/workflows/deps-test.yml
+ create mode 100644 libs/libogg-1.3.2/include/ogg/config_types.h
+
+diff --git a/.github/workflows/deps-test.yml b/.github/workflows/deps-test.yml
+deleted file mode 100644
+index 1a4feb0c..00000000
+--- a/.github/workflows/deps-test.yml
++++ /dev/null
+@@ -1,29 +0,0 @@
+-name: build
+-on: [push, pull_request]
+-
+-jobs:
+-  windows:
+-    runs-on: windows-latest
+-    strategy:
+-      fail-fast: false
+-      matrix:
+-        platform: [Win32, x64]
+-    steps:
+-    - name: Checkout
+-      uses: actions/checkout@v2
+-      with:
+-        path: megasource
+-    - name: Checkout LÖVE
+-      uses: actions/checkout@v2
+-      with:
+-        path: megasource/libs/love
+-        repository: love2d/love
+-        ref: main
+-    - name: Configure
+-      shell: cmd
+-      env:
+-        PLATFORM: ${{ matrix.platform }}
+-      run: cmake -Bbuild -Hmegasource -T v142 -A %PLATFORM% -DCMAKE_INSTALL_PREFIX=%CD%\install
+-    - name: Install
+-      shell: cmd
+-      run: cmake --build build --config Release --target install -j2
+diff --git a/.gitignore b/.gitignore
+index 2c9d83ce..de9435da 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -1,2 +1,2 @@
+ /build/**
+-/libs/love/**
++/libs/love
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 7a65db6b..6c37f79a 100755
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -168,12 +168,14 @@ endif()
+ set(MEGA_ZLIB_VER "1.2.12")
+ set(MEGA_LUA51_VER "5.1.5")
+ set(MEGA_LUAJIT_VER "2.1.0-e826d0c")
++## set(MEGA_LUAJIT_VER "2.1.0-0bee44c") # known good
+ set(MEGA_LIBOGG_VER "1.3.2")
+ set(MEGA_LIBVORBIS_VER "1.3.5")
+ set(MEGA_LIBTHEORA_VER "1.1.1")
+ set(MEGA_MPG123_VER "1.25.6")
+ set(MEGA_FREETYPE_VER "2.8.1")
+ set(MEGA_SDL2_VER "2.28.5")
++## set(MEGA_SDL2_VER "2.0.10") # known good
+ set(MEGA_OPENAL_VER "1.19.1")
+ set(MEGA_MODPLUG_VER "0.8.8.4")
+ 
+@@ -228,18 +230,22 @@ message(STATUS "-----------------------------------------------------")
+ add_subdirectory("libs/freetype-${MEGA_FREETYPE_VER}" ${CMAKE_BINARY_DIR}/freetype)
+ set(MEGA_FREETYPE freetype)
+ 
+-message(STATUS "-----------------------------------------------------")
+-message(STATUS "Configuring: SDL2 ${MEGA_SDL2_VER}")
+-message(STATUS "-----------------------------------------------------")
+-add_subdirectory("libs/SDL2" ${CMAKE_BINARY_DIR}/SDL2)
+-set(MEGA_SDL2 SDL2)
+-set(MEGA_SDL2MAIN SDL2main)
+-
+-message(STATUS "-----------------------------------------------------")
+-message(STATUS "Configuring: openal-soft ${MEGA_OPENAL_VER}")
+-message(STATUS "-----------------------------------------------------")
+-add_subdirectory("libs/openal-soft" ${CMAKE_BINARY_DIR}/openal-soft)
+-set(MEGA_OPENAL ${OPENAL_LIB_NAME})
++## try compiling with native SDL, emscripten documentation says compatibility
++## changes have been made with the upstream source
++if (NOT EMSCRIPTEN)
++  message(STATUS "-----------------------------------------------------")
++  message(STATUS "Configuring: SDL2 ${MEGA_SDL2_VER}")
++  message(STATUS "-----------------------------------------------------")
++  add_subdirectory("libs/SDL2" ${CMAKE_BINARY_DIR}/SDL2)
++  set(MEGA_SDL2 SDL2)
++  set(MEGA_SDL2MAIN SDL2main)
++
++  message(STATUS "-----------------------------------------------------")
++  message(STATUS "Configuring: openal-soft ${MEGA_OPENAL_VER}")
++  message(STATUS "-----------------------------------------------------")
++  add_subdirectory("libs/openal-soft" ${CMAKE_BINARY_DIR}/openal-soft)
++  set(MEGA_OPENAL ${OPENAL_LIB_NAME})
++endif (NOT EMSCRIPTEN)
+ 
+ message(STATUS "-----------------------------------------------------")
+ message(STATUS "Configuring: libmodplug ${MEGA_MODPLUG_VER}")
+@@ -247,6 +253,8 @@ message(STATUS "-----------------------------------------------------")
+ add_subdirectory("libs/libmodplug-${MEGA_MODPLUG_VER}" ${CMAKE_BINARY_DIR}/libmodplug)
+ set(MEGA_MODPLUG modplug-static)
+ 
++
++## See if there is a better option than using Lua PUC 5.1 in place of luajit for web
+ # LuaJIT
+ if(MSVC)
+ 	message(STATUS "-----------------------------------------------------")
+@@ -325,10 +333,12 @@ else()
+ endif()
+ 
+ link_directories(${SDL_LINK_DIR})
+-add_executable(megatest src/test.cpp)
+-target_link_libraries(megatest ${MEGA_3P})
+-
+-add_move_dll(megatest ${MEGA_MPEG123})
+-add_move_dll(megatest ${MEGA_SDL2})
+-add_move_dll(megatest ${MEGA_OPENAL})
+-add_move_dll(megatest ${MEGA_LUA51})
++if (NOT EMSCRIPTEN)
++  add_executable(megatest src/test.cpp)
++  target_link_libraries(megatest ${MEGA_3P})
++
++  add_move_dll(megatest ${MEGA_MPEG123})
++  add_move_dll(megatest ${MEGA_SDL2})
++  add_move_dll(megatest ${MEGA_OPENAL})
++  add_move_dll(megatest ${MEGA_LUA51})
++endif(NOT EMSCRIPTEN)
+diff --git a/libs/libmodplug-0.8.8.4/CMakeLists.txt b/libs/libmodplug-0.8.8.4/CMakeLists.txt
+index 941c273e..01c8379f 100644
+--- a/libs/libmodplug-0.8.8.4/CMakeLists.txt
++++ b/libs/libmodplug-0.8.8.4/CMakeLists.txt
+@@ -44,7 +44,7 @@ set(MODPLUG_SRC
+ 
+ file(COPY src/modplug.h DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/libmodplug)
+ 
+-if(APPLE)
++if(APPLE OR EMSCRIPTEN)
+ 	include(CheckFunctionExists)
+ 	include(CheckIncludeFiles)
+ 	include(CheckLibraryExists)
+diff --git a/libs/libogg-1.3.2/CMakeLists.txt b/libs/libogg-1.3.2/CMakeLists.txt
+index 532a2e4b..ecdc2d5b 100644
+--- a/libs/libogg-1.3.2/CMakeLists.txt
++++ b/libs/libogg-1.3.2/CMakeLists.txt
+@@ -10,6 +10,40 @@ set(OGG_SRC
+ 	src/framing.c
+ )
+ 
++if (EMSCRIPTEN) # See: https://github.com/emscripten-ports/Ogg/blob/master/CMakeLists.txt
++  include(CheckIncludeFiles)
++
++  # Configure config_type.h
++  check_include_files(inttypes.h INCLUDE_INTTYPES_H)
++  check_include_files(stdint.h INCLUDE_STDINT_H)
++  check_include_files(sys/types.h INCLUDE_SYS_TYPES_H)
++
++  set(SIZE16 int16_t)
++  set(USIZE16 uint16_t)
++  set(SIZE32 int32_t)
++  set(USIZE32 uint32_t)
++  set(SIZE64 int64_t)
++
++  configure_file(include/ogg/config_types.h.in ${CMAKE_CURRENT_SOURCE_DIR}/include/ogg/config_types.h @ONLY)
++endif ()
++
++if (EMSCRIPTEN) # See: https://github.com/emscripten-ports/Ogg/blob/master/CMakeLists.txt
++  include(CheckIncludeFiles)
++
++  # Configure config_type.h
++  check_include_files(inttypes.h INCLUDE_INTTYPES_H)
++  check_include_files(stdint.h INCLUDE_STDINT_H)
++  check_include_files(sys/types.h INCLUDE_SYS_TYPES_H)
++
++  set(SIZE16 int16_t)
++  set(USIZE16 uint16_t)
++  set(SIZE32 int32_t)
++  set(USIZE32 uint32_t)
++  set(SIZE64 int64_t)
++
++  configure_file(include/ogg/config_types.h.in ${CMAKE_CURRENT_SOURCE_DIR}/include/ogg/config_types.h @ONLY)
++endif ()
++
+ if(OGG_BUILD_STATIC)
+ 	add_library(ogg-static STATIC ${OGG_SRC})
+ 	target_include_directories(ogg-static PUBLIC include)
+diff --git a/libs/libogg-1.3.2/include/ogg/config_types.h b/libs/libogg-1.3.2/include/ogg/config_types.h
+new file mode 100644
+index 00000000..4b00047a
+--- /dev/null
++++ b/libs/libogg-1.3.2/include/ogg/config_types.h
+@@ -0,0 +1,25 @@
++#ifndef __CONFIG_TYPES_H__
++#define __CONFIG_TYPES_H__
++
++/* these are filled in by configure */
++#define INCLUDE_INTTYPES_H 1
++#define INCLUDE_STDINT_H 1
++#define INCLUDE_SYS_TYPES_H 1
++
++#if INCLUDE_INTTYPES_H
++#  include <inttypes.h>
++#endif
++#if INCLUDE_STDINT_H
++#  include <stdint.h>
++#endif
++#if INCLUDE_SYS_TYPES_H
++#  include <sys/types.h>
++#endif
++
++typedef int16_t ogg_int16_t;
++typedef uint16_t ogg_uint16_t;
++typedef int32_t ogg_int32_t;
++typedef uint32_t ogg_uint32_t;
++typedef int64_t ogg_int64_t;
++
++#endif
+diff --git a/libs/lua-5.1.5/CMakeLists.txt b/libs/lua-5.1.5/CMakeLists.txt
+index 1d09caf7..194f9799 100644
+--- a/libs/lua-5.1.5/CMakeLists.txt
++++ b/libs/lua-5.1.5/CMakeLists.txt
+@@ -49,5 +49,5 @@ if (LUA_BUILD_SHARED)
+ 	if(MSVC)
+ 		set_property(TARGET lua51 PROPERTY COMPILE_DEFINITIONS LUA_BUILD_AS_DLL=1)
+ 	endif()
+-	install(TARGETS lua51 RUNTIME DESTINATION . LIBRARY DESTINATION .)
++	install(TARGETS lua51 RUNTIME DESTINATION . LIBRARY DESTINATION . ARCHIVE DESTINATION .)
+ endif()
+diff --git a/libs/mpg123-1.25.6/CMakeLists.txt b/libs/mpg123-1.25.6/CMakeLists.txt
+index 88cd21e2..0c20c5b3 100644
+--- a/libs/mpg123-1.25.6/CMakeLists.txt
++++ b/libs/mpg123-1.25.6/CMakeLists.txt
+@@ -43,7 +43,92 @@ if(MSVC)
+ 	add_definitions(-DOPT_GENERIC)
+ 	set(MPG123_INCLUDE_DIRS ${MPG123_INCLUDE_DIRS} ports/MSVC++)
+ elseif(APPLE)
+-	set(MPG123_INCLUDE_DIRS ${MPG123_INCLUDE_DIRS} ports/Xcode)
++        set(MPG123_INCLUDE_DIRS ${MPG123_INCLUDE_DIRS} ports/Xcode)
++elseif(EMSCRIPTEN)
++	add_definitions(-DOPT_GENERIC)
++
++	include(CheckFunctionExists)
++	include(CheckIncludeFiles)
++	include(CheckLibraryExists)
++	include(CheckSymbolExists)
++	include(CheckTypeSize)
++
++	check_include_files("alc.h" HAVE_ALC_H)
++	check_include_files("Alib.h" HAVE_ALIB_H)
++	check_include_files("AL/alc.h" HAVE_AL_ALC_H)
++	check_include_files("AL/al.h" HAVE_AL_AL_H)
++	check_include_files("al.h" HAVE_AL_H)
++	check_include_files("arpa/inet.h" HAVE_ARPA_INET_H)
++	check_include_files("asm/audioio.h" HAVE_ASM_AUDIOIO_H)
++	check_function_exists(atoll HAVE_ATOLL)
++	check_include_files("audios.h" HAVE_AUDIOS_H)
++	check_include_files("AudioToolbox/AudioToolbox.h" HAVE_AUDIOTOOLBOX_AUDIOTOOLBOX_H)
++	check_include_files("AudioUnit/AudioUnit.h" HAVE_AUDIOUNIT_AUDIOUNIT_H)
++	check_include_files("CoreServices/CoreServices.h" HAVE_CORESERVICES_CORESERVICES_H)
++	check_include_files("CUlib.h" HAVE_CULIB_H)
++	check_include_files("dlfcn.h" HAVE_DLFCN_H)
++	# /* Define if getaddrinfo accepts the AI_ADDRCONFIG flag */
++	#cmakedefine HAVE_GAI_ADDRCONFIG
++	check_function_exists(getaddrinfo HAVE_GETADDRINFO)
++	check_function_exists(getpagesize HAVE_GETPAGESIZE)
++	check_function_exists(getuid HAVE_GETUID)
++	check_include_files("inttypes.h" HAVE_INTTYPES_H)
++	check_include_files("langinfo.h" HAVE_LANGINFO_H)
++	check_library_exists(m "" "" HAVE_LIBM)
++	check_library_exists(mx "" "" HAVE_LIBMX)
++	check_include_files("limits.h" HAVE_LIMITS_H)
++	check_include_files("linux/soundcard.h" HAVE_LINUX_SOUNDCARD_H)
++	check_include_files("locale.h" HAVE_LOCALE_H)
++	check_library_exists(ltdl "" "" HAVE_LTDL)
++	check_include_files("machine/soundcard.h" HAVE_MACHINE_SOUNDCARD_H)
++	check_include_files("memory.h" HAVE_MEMORY_H)
++	check_function_exists(mkfifo HAVE_MKFIFO)
++	check_function_exists(mmap HAVE_MMAP)
++	check_include_files("netdb.h" HAVE_NETDB_H)
++	check_include_files("netinet/in.h" HAVE_NETINET_IN_H)
++	check_include_files("netinet/tcp.h" HAVE_NETINET_TCP_H)
++	check_function_exists(nl_langinfo HAVE_NL_LANGINFO)
++	check_include_files("OpenAL/alc.h" HAVE_OPENAL_ALC_H)
++	check_include_files("OpenAL/al.h" HAVE_OPENAL_AL_H)
++	check_include_files("os2me.h" HAVE_OS2ME_H)
++	check_include_files("os2.h" HAVE_OS2_H)
++	check_function_exists(random HAVE_RANDOM)
++	check_include_files("sched.h" HAVE_SCHED_H)
++	check_function_exists(sched_setscheduler HAVE_SCHED_SETSCHEDULER)
++	check_function_exists(setlocale HAVE_SETLOCALE)
++	check_function_exists(setpriority HAVE_SETPRIORITY)
++	check_function_exists(setuid HAVE_SETUID)
++	check_include_files("signal.h" HAVE_SIGNAL_H)
++	check_include_files("sndio.h" HAVE_SNDIO_H)
++	check_include_files("stdint.h" HAVE_STDINT_H)
++	check_include_files("stdio.h" HAVE_STDIO_H)
++	check_include_files("stdlib.h" HAVE_STDLIB_H)
++	check_function_exists(strdup HAVE_STRDUP)
++	check_function_exists(strerror HAVE_STRERROR)
++	check_include_files("strings.h" HAVE_STRINGS_H)
++	check_include_files("string.h" HAVE_STRING_H)
++	check_include_files("sun/audioio.h" HAVE_SUN_AUDIOIO_H)
++	check_include_files("sys/audioio.h" HAVE_SYS_AUDIOIO_H)
++	check_include_files("sys/audio.h" HAVE_SYS_AUDIO_H)
++	check_include_files("sys/ioctl.h" HAVE_SYS_IOCTL_H)
++	check_include_files("sys/param.h" HAVE_SYS_PARAM_H)
++	check_include_files("sys/resource.h" HAVE_SYS_RESOURCE_H)
++	check_include_files("sys/signal.h" HAVE_SYS_SIGNAL_H)
++	check_include_files("sys/socket.h" HAVE_SYS_SOCKET_H)
++	check_include_files("sys/soundcard.h" HAVE_SYS_SOUNDCARD_H)
++	check_include_files("sys/stat.h" HAVE_SYS_STAT_H)
++	check_include_files("sys/time.h" HAVE_SYS_TIME_H)
++	check_include_files("sys/types.h" HAVE_SYS_TYPES_H)
++	check_include_files("sys/wait.h" HAVE_SYS_WAIT_H)
++	# /* Define this if you have the POSIX termios library */
++	#cmakedefine HAVE_TERMIOS
++	check_include_files("unistd.h" HAVE_UNISTD_H)
++	check_include_files("windows.h" HAVE_WINDOWS_H)
++	check_include_files("ws2tcpip.h" HAVE_WS2TCPIP_H)
++
++	set(MPG123_INCLUDE_DIRS ${MPG123_INCLUDE_DIRS} ${PROJECT_BINARY_DIR})
++	configure_file(${PROJECT_SOURCE_DIR}/src/config.h.in ${PROJECT_BINARY_DIR}/config.h)
++	configure_file(${PROJECT_SOURCE_DIR}/src/libmpg123/mpg123.h.in ${PROJECT_BINARY_DIR}/mpg123.h)        
+ endif()
+ 
+ if (MPG123_BUILD_STATIC)
+@@ -58,5 +143,5 @@ if (MPG123_BUILD_SHARED)
+ 		target_link_libraries(mpg123 Shlwapi)
+ 		set_property(TARGET mpg123 PROPERTY COMPILE_DEFINITIONS BUILD_MPG123_DLL)
+ 	endif()
+-	install(TARGETS mpg123 RUNTIME DESTINATION . LIBRARY DESTINATION .)
++	install(TARGETS mpg123 RUNTIME DESTINATION . LIBRARY DESTINATION . ARCHIVE DESTINATION .)
+ endif()
+diff --git a/libs/mpg123-1.25.6/src/compat/compat.c b/libs/mpg123-1.25.6/src/compat/compat.c
+index 675a2dab..a8dab2ab 100644
+--- a/libs/mpg123-1.25.6/src/compat/compat.c
++++ b/libs/mpg123-1.25.6/src/compat/compat.c
+@@ -28,6 +28,8 @@
+ #ifdef HAVE_DIRENT_H
+ #  include <dirent.h>
+ #endif
++// this was included in previous emscripten versions
++#  include <dirent.h>
+ 
+ /* Win32 is only supported with unicode now. These headers also cover
+    module stuff. The WANT_WIN32_UNICODE macro is synonymous with
+diff --git a/libs/mpg123-1.25.6/src/config.h.in b/libs/mpg123-1.25.6/src/config.h.in
+index 508c532e..3f87a7e6 100644
+--- a/libs/mpg123-1.25.6/src/config.h.in
++++ b/libs/mpg123-1.25.6/src/config.h.in
+@@ -44,223 +44,227 @@
+ #undef GAPLESS
+ 
+ /* Define to 1 if you have the <alc.h> header file. */
+-#undef HAVE_ALC_H
++#cmakedefine HAVE_ALC_H
+ 
+ /* Define to 1 if you have the <Alib.h> header file. */
+-#undef HAVE_ALIB_H
++#cmakedefine HAVE_ALIB_H
+ 
+ /* Define to 1 if you have the <AL/alc.h> header file. */
+-#undef HAVE_AL_ALC_H
++#cmakedefine HAVE_AL_ALC_H
+ 
+ /* Define to 1 if you have the <AL/al.h> header file. */
+-#undef HAVE_AL_AL_H
++#cmakedefine HAVE_AL_AL_H
+ 
+ /* Define to 1 if you have the <al.h> header file. */
+-#undef HAVE_AL_H
++#cmakedefine HAVE_AL_H
+ 
+ /* Define to 1 if you have the <arpa/inet.h> header file. */
+-#undef HAVE_ARPA_INET_H
++#cmakedefine HAVE_ARPA_INET_H
+ 
+ /* Define to 1 if you have the <asm/audioio.h> header file. */
+-#undef HAVE_ASM_AUDIOIO_H
++#cmakedefine HAVE_ASM_AUDIOIO_H
+ 
+ /* Define to 1 if you have the `atoll' function. */
+-#undef HAVE_ATOLL
++#cmakedefine HAVE_ATOLL
+ 
+ /* Define to 1 if you have the <audios.h> header file. */
+-#undef HAVE_AUDIOS_H
++#cmakedefine HAVE_AUDIOS_H
+ 
+ /* Define to 1 if you have the <AudioToolbox/AudioToolbox.h> header file. */
+-#undef HAVE_AUDIOTOOLBOX_AUDIOTOOLBOX_H
++#cmakedefine HAVE_AUDIOTOOLBOX_AUDIOTOOLBOX_H
+ 
+ /* Define to 1 if you have the <AudioUnit/AudioUnit.h> header file. */
+-#undef HAVE_AUDIOUNIT_AUDIOUNIT_H
++#cmakedefine HAVE_AUDIOUNIT_AUDIOUNIT_H
+ 
+ /* Define to 1 if you have the <CoreServices/CoreServices.h> header file. */
+-#undef HAVE_CORESERVICES_CORESERVICES_H
++#cmakedefine HAVE_CORESERVICES_CORESERVICES_H
+ 
+ /* Define to 1 if you have the <CUlib.h> header file. */
+-#undef HAVE_CULIB_H
++#cmakedefine HAVE_CULIB_H
+ 
+-/* Define to 1 if you have the <dirent.h> header file. */
+-#undef HAVE_DIRENT_H
++/* /\* Define to 1 if you have the <dirent.h> header file. *\/ */
++/* #undef HAVE_DIRENT_H */
+ 
+-/* Define to 1 if you have the `dlclose' function. */
+-#undef HAVE_DLCLOSE
++/* /\* Define to 1 if you have the `dlclose' function. *\/ */
++/* #undef HAVE_DLCLOSE */
+ 
+ /* Define to 1 if you have the <dlfcn.h> header file. */
+-#undef HAVE_DLFCN_H
++#cmakedefine HAVE_DLFCN_H
+ 
+-/* Define to 1 if you have the `dlopen' function. */
+-#undef HAVE_DLOPEN
++/* /\* Define to 1 if you have the `dlopen' function. *\/ */
++/* #undef HAVE_DLOPEN */
+ 
+ /* Define to 1 if you have the `dlsym' function. */
+-#undef HAVE_DLSYM
++/* #undef HAVE_DLSYM */
+ 
+ /* Define if getaddrinfo accepts the AI_ADDRCONFIG flag */
+-#undef HAVE_GAI_ADDRCONFIG
++#cmakedefine HAVE_GAI_ADDRCONFIG
+ 
+ /* Define to 1 if you have the `getaddrinfo' function. */
+-#undef HAVE_GETADDRINFO
++#cmakedefine HAVE_GETADDRINFO
+ 
+ /* Define to 1 if you have the `getpagesize' function. */
+-#undef HAVE_GETPAGESIZE
++#cmakedefine HAVE_GETPAGESIZE
+ 
+ /* Define to 1 if you have the `getuid' function. */
+-#undef HAVE_GETUID
++#cmakedefine HAVE_GETUID
+ 
+ /* Define to 1 if you have the <inttypes.h> header file. */
+-#undef HAVE_INTTYPES_H
++#cmakedefine HAVE_INTTYPES_H
+ 
+ /* Define to 1 if you have the <langinfo.h> header file. */
+-#undef HAVE_LANGINFO_H
++#cmakedefine HAVE_LANGINFO_H
+ 
+ /* Define to 1 if you have the `m' library (-lm). */
+-#undef HAVE_LIBM
++#cmakedefine HAVE_LIBM
+ 
+ /* Define to 1 if you have the `mx' library (-lmx). */
+-#undef HAVE_LIBMX
++#cmakedefine HAVE_LIBMX
+ 
+ /* Define to 1 if you have the <limits.h> header file. */
+-#undef HAVE_LIMITS_H
++#cmakedefine HAVE_LIMITS_H
+ 
+ /* Define to 1 if you have the <linux/soundcard.h> header file. */
+-#undef HAVE_LINUX_SOUNDCARD_H
++#cmakedefine HAVE_LINUX_SOUNDCARD_H
+ 
+ /* Define to 1 if you have the <locale.h> header file. */
+-#undef HAVE_LOCALE_H
++#cmakedefine HAVE_LOCALE_H
++
++#cmakedefine HAVE_LTDL
+ 
+ /* Define to 1 if you have the <machine/soundcard.h> header file. */
+-#undef HAVE_MACHINE_SOUNDCARD_H
++#cmakedefine HAVE_MACHINE_SOUNDCARD_H
+ 
+ /* Define to 1 if you have the <memory.h> header file. */
+-#undef HAVE_MEMORY_H
++#cmakedefine HAVE_MEMORY_H
+ 
+ /* Define to 1 if you have the `mkfifo' function. */
+-#undef HAVE_MKFIFO
++#cmakedefine HAVE_MKFIFO
+ 
+ /* Define to 1 if you have a working `mmap' system call. */
+-#undef HAVE_MMAP
++#cmakedefine HAVE_MMAP
+ 
+ /* Define to 1 if you have the <netdb.h> header file. */
+-#undef HAVE_NETDB_H
++#cmakedefine HAVE_NETDB_H
+ 
+ /* Define to 1 if you have the <netinet/in.h> header file. */
+-#undef HAVE_NETINET_IN_H
++#cmakedefine HAVE_NETINET_IN_H
+ 
+ /* Define to 1 if you have the <netinet/tcp.h> header file. */
+-#undef HAVE_NETINET_TCP_H
++#cmakedefine HAVE_NETINET_TCP_H
+ 
+ /* Define to 1 if you have the `nl_langinfo' function. */
+-#undef HAVE_NL_LANGINFO
++#cmakedefine HAVE_NL_LANGINFO
+ 
+ /* Define to 1 if you have the <OpenAL/alc.h> header file. */
+-#undef HAVE_OPENAL_ALC_H
++#cmakedefine HAVE_OPENAL_ALC_H
+ 
+ /* Define to 1 if you have the <OpenAL/al.h> header file. */
+-#undef HAVE_OPENAL_AL_H
++#cmakedefine HAVE_OPENAL_AL_H
+ 
+ /* Define to 1 if you have the <os2me.h> header file. */
+-#undef HAVE_OS2ME_H
++#cmakedefine HAVE_OS2ME_H
+ 
+ /* Define to 1 if you have the <os2.h> header file. */
+-#undef HAVE_OS2_H
++#cmakedefine HAVE_OS2_H
+ 
+ /* Define to 1 if you have the `random' function. */
+-#undef HAVE_RANDOM
++#cmakedefine HAVE_RANDOM
+ 
+ /* Define to 1 if you have the <sched.h> header file. */
+-#undef HAVE_SCHED_H
++#cmakedefine HAVE_SCHED_H
+ 
+ /* Define to 1 if you have the `sched_setscheduler' function. */
+-#undef HAVE_SCHED_SETSCHEDULER
++#cmakedefine HAVE_SCHED_SETSCHEDULER
+ 
+ /* Define to 1 if you have the `setlocale' function. */
+-#undef HAVE_SETLOCALE
++#cmakedefine HAVE_SETLOCALE
+ 
+ /* Define to 1 if you have the `setpriority' function. */
+-#undef HAVE_SETPRIORITY
++#cmakedefine HAVE_SETPRIORITY
+ 
+ /* Define to 1 if you have the `setuid' function. */
+-#undef HAVE_SETUID
++#cmakedefine HAVE_SETUID
+ 
+ /* Define to 1 if you have the <signal.h> header file. */
+-#undef HAVE_SIGNAL_H
++#cmakedefine HAVE_SIGNAL_H
+ 
+ /* Define to 1 if you have the <sndio.h> header file. */
+-#undef HAVE_SNDIO_H
++#cmakedefine HAVE_SNDIO_H
+ 
+ /* Define to 1 if you have the <stdint.h> header file. */
+ #undef HAVE_STDINT_H
+ 
+ /* Define to 1 if you have the <stdio.h> header file. */
+-#undef HAVE_STDIO_H
++#cmakedefine HAVE_STDIO_H
+ 
+ /* Define to 1 if you have the <stdlib.h> header file. */
+-#undef HAVE_STDLIB_H
++#cmakedefine HAVE_STDLIB_H
++
++#cmakedefine HAVE_STRDUP
+ 
+ /* Define to 1 if you have the `strerror' function. */
+-#undef HAVE_STRERROR
++#cmakedefine HAVE_STRERROR
+ 
+ /* Define to 1 if you have the <strings.h> header file. */
+-#undef HAVE_STRINGS_H
++#cmakedefine HAVE_STRINGS_H
+ 
+ /* Define to 1 if you have the <string.h> header file. */
+-#undef HAVE_STRING_H
++#cmakedefine HAVE_STRING_H
+ 
+ /* Define to 1 if you have the <sun/audioio.h> header file. */
+-#undef HAVE_SUN_AUDIOIO_H
++#cmakedefine HAVE_SUN_AUDIOIO_H
+ 
+ /* Define to 1 if you have the <sys/audioio.h> header file. */
+-#undef HAVE_SYS_AUDIOIO_H
++#cmakedefine HAVE_SYS_AUDIOIO_H
+ 
+ /* Define to 1 if you have the <sys/audio.h> header file. */
+-#undef HAVE_SYS_AUDIO_H
++#cmakedefine HAVE_SYS_AUDIO_H
+ 
+ /* Define to 1 if you have the <sys/ioctl.h> header file. */
+-#undef HAVE_SYS_IOCTL_H
++#cmakedefine HAVE_SYS_IOCTL_H
+ 
+ /* Define to 1 if you have the <sys/param.h> header file. */
+-#undef HAVE_SYS_PARAM_H
++#cmakedefine HAVE_SYS_PARAM_H
+ 
+ /* Define to 1 if you have the <sys/resource.h> header file. */
+-#undef HAVE_SYS_RESOURCE_H
++#cmakedefine HAVE_SYS_RESOURCE_H
+ 
+ /* Define to 1 if you have the <sys/select.h> header file. */
+-#undef HAVE_SYS_SELECT_H
++// #undef HAVE_SYS_SELECT_H
+ 
+ /* Define to 1 if you have the <sys/signal.h> header file. */
+-#undef HAVE_SYS_SIGNAL_H
++#cmakedefine HAVE_SYS_SIGNAL_H
+ 
+ /* Define to 1 if you have the <sys/socket.h> header file. */
+-#undef HAVE_SYS_SOCKET_H
++#cmakedefine HAVE_SYS_SOCKET_H
+ 
+ /* Define to 1 if you have the <sys/soundcard.h> header file. */
+-#undef HAVE_SYS_SOUNDCARD_H
++#cmakedefine HAVE_SYS_SOUNDCARD_H
+ 
+ /* Define to 1 if you have the <sys/stat.h> header file. */
+-#undef HAVE_SYS_STAT_H
++#cmakedefine HAVE_SYS_STAT_H
+ 
+ /* Define to 1 if you have the <sys/time.h> header file. */
+-#undef HAVE_SYS_TIME_H
++#cmakedefine HAVE_SYS_TIME_H
+ 
+ /* Define to 1 if you have the <sys/types.h> header file. */
+-#undef HAVE_SYS_TYPES_H
++#cmakedefine HAVE_SYS_TYPES_H
+ 
+ /* Define to 1 if you have the <sys/wait.h> header file. */
+-#undef HAVE_SYS_WAIT_H
++#cmakedefine HAVE_SYS_WAIT_H
+ 
+ /* Define this if you have the POSIX termios library */
+-#undef HAVE_TERMIOS
++#cmakedefine HAVE_TERMIOS
+ 
+ /* Define to 1 if you have the <unistd.h> header file. */
+-#undef HAVE_UNISTD_H
++#cmakedefine HAVE_UNISTD_H
+ 
+ /* Define to 1 if you have the <windows.h> header file. */
+-#undef HAVE_WINDOWS_H
++#cmakedefine HAVE_WINDOWS_H
+ 
+ /* Define to 1 if you have the <ws2tcpip.h> header file. */
+-#undef HAVE_WS2TCPIP_H
++#cmakedefine HAVE_WS2TCPIP_H
+ 
+ /* Define to indicate that float storage follows IEEE754. */
+ #undef IEEE_FLOAT
+diff --git a/readme.md b/readme.md
+index 397aca59..93f855d7 100644
+--- a/readme.md
++++ b/readme.md
+@@ -1,61 +1,5 @@
+-Megasource is a CMake-buildable collection of all [LÖVE][love2d] dependencies.
++Adapting LÖVE to suit Emscripten
+ 
+-It is currently only officially supported on Windows, but may also work on macOS. It could certainly also work on Linux, but good package managers makes megasource less relevant there.
++LÖVE's megasource, clone LÖVE into the *libs* folder.
+ 
+-Versions
+---------
+-
+-This repository uses git tags for the library dependencies of a specific released version of LÖVE.
+-
+-For in-development versions of LÖVE, there may be a branch in this repository corresponding to a similar branch in the love repository.
+-
+-Prerequisites
+--------------
+-
+- - Windows.
+- - LOVE 12+: [Visual Studio 2019][vs2019] or newer.
+- - LOVE 11 and older: [Visual Studio 2013][oldvs] or newer. Official builds of LOVE 11 and older use Visual Studio 2013.
+- - [CMake 3.1][cmake] or greater.
+- - [NSIS][nsis] if you want to build the LÖVE installer.
+-
+-Building
+---------
+-
+-To build just the dependencies for 64 bit x86 using Visual Studio 2019:
+-
+-	$ git clone https://github.com/love2d/megasource megasource
+-	$ cd megasource
+-	$ cmake -G "Visual Studio 16 2019" -A x64 -H. -Bbuild
+-	$ cmake --build build --target megatest --config Release
+-
+-... or you can open the solution file in Visual Studio and build from there instead of invoking cmake --build.
+-
+-To build for a different version of Visual Studio (or a different build tool), replace ```"Visual Studio 16 2019"``` with one of the other [build system generators][generators]. For example Visual Studio 2022 is ```"Visual Studio 17 2022"```.
+-
+-Similarly, to build for a different architecture than 64 bit x86, use a different [architecture name][architectures] for the ```-A``` parameter.
+-
+-Note that ```-H``` has been replaced in CMake 3.13 with ```-S```.
+-
+-If you want to build [LÖVE][love2d], clone LÖVE into the *libs* folder. Megasource will automatically look for it there. E.g.:
+-
+-	$ git clone https://github.com/love2d/megasource megasource
+-	$ cd megasource
+-	$ git clone https://github.com/love2d/love libs/love
+-	$ cmake -G "Visual Studio 16 2019" -A x64 -H. -Bbuild
+-	$ cmake --build build --target love/love --config Release
+-
+-The binaries can be found in *build/love/Release*.
+-
+-If you want to build the installer, replace the previous build command with:
+-
+-    $ cmake --build build --target PACKAGE --config Release
+-
+-A zip with the binaries and the installer will appear in *build*.
+-
+-[love2d]: http://love2d.org
+-[cmake]: http://www.cmake.org/
+-[nsis]: http://nsis.sourceforge.net
+-[vs2019]: https://visualstudio.microsoft.com/downloads/
+-[oldvs]: https://visualstudio.microsoft.com/vs/older-downloads/
+-[generators]: https://cmake.org/cmake/help/latest/manual/cmake-generators.7.html#visual-studio-generators
+-[architectures]: https://cmake.org/cmake/help/latest/generator/Visual%20Studio%2016%202019.html#platform-selection
++See [love.js](https://github.com/Davidobot/love.js) and the counterpart [love emscripten branch](https://github.com/Davidobot/love/tree/emscripten).
+-- 
+2.43.0
+
+
+From bade4b13fe88e44ebf6e0d0ca64e1cec2630e37c Mon Sep 17 00:00:00 2001
+From: alexjgriffith <griffitaj@gmail.com>
+Date: Fri, 10 May 2024 04:20:40 -0400
+Subject: [PATCH 2/4] Fixed issue where -pthread was not set during compilation
+
+---
+ CMakeLists.txt | 44 +++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 43 insertions(+), 1 deletion(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 6c37f79a..0a58cb89 100755
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -165,6 +165,40 @@ if(MSVC)
+ endif()
+ 
+ 
++include(CMakeParseArguments)
++
++## https://github.com/emscripten-core/emscripten/issues/11525
++function(register_module)
++    set(OPTIONS)
++    cmake_parse_arguments(
++            register_module
++            "" # No single option arguments
++            "TARGET"
++            "LINKER_FLAGS"
++            ${ARGN}
++    )
++
++    if (NOT register_module_TARGET)
++        message(FATAL_ERROR "TARGET is required!")
++        return()
++    endif()
++
++    set(_targetLinkFlags "-s USE_PTHREADS=1")
++    set(_targetCompilerFlags "-s USE_PTHREADS=1")
++
++    if (register_module_LINKER_FLAGS)
++        set(_targetLinkFlags "${_targetLinkFlags} ${register_module_LINKER_FLAGS}")
++    endif()
++
++    set_target_properties(${register_module_TARGET} PROPERTIES LINK_FLAGS ${_targetLinkFlags})
++    set_target_properties(${register_module_TARGET} PROPERTIES COMPILE_FLAGS ${_targetCompilerFlags})
++
++    message(STATUS " Registered module ${register_module_TARGET}")
++
++    unset(_targetLinkFlags)
++    unset(_targetCompilerFlags)
++endfunction()
++
+ set(MEGA_ZLIB_VER "1.2.12")
+ set(MEGA_LUA51_VER "5.1.5")
+ set(MEGA_LUAJIT_VER "2.1.0-e826d0c")
+@@ -192,18 +226,21 @@ message(STATUS "Configuring: zlib ${MEGA_ZLIB_VER}")
+ message(STATUS "-----------------------------------------------------")
+ add_subdirectory("libs/zlib-${MEGA_ZLIB_VER}" ${CMAKE_BINARY_DIR}/zlib)
+ set(MEGA_ZLIB zlibstatic)
++register_module(TARGET zlibstatic)
+ 
+ message(STATUS "-----------------------------------------------------")
+ message(STATUS "Configuring: lua ${MEGA_LUA51_VER}")
+ message(STATUS "-----------------------------------------------------")
+ add_subdirectory("libs/lua-${MEGA_LUA51_VER}" ${CMAKE_BINARY_DIR}/lua51)
+ set(MEGA_LUA51 lua51)
++register_module(TARGET lua51)
+ 
+ message(STATUS "-----------------------------------------------------")
+ message(STATUS "Configuring: libogg ${MEGA_LIBOGG_VER}")
+ message(STATUS "-----------------------------------------------------")
+ add_subdirectory("libs/libogg-${MEGA_LIBOGG_VER}" ${CMAKE_BINARY_DIR}/libogg)
+ set(MEGA_LIBOGG ogg-static)
++register_module(TARGET ogg-static)
+ 
+ message(STATUS "-----------------------------------------------------")
+ message(STATUS "Configuring: libvorbis ${MEGA_LIBVORBIS_VER}")
+@@ -211,24 +248,29 @@ message(STATUS "-----------------------------------------------------")
+ add_subdirectory("libs/libvorbis-${MEGA_LIBVORBIS_VER}" ${CMAKE_BINARY_DIR}/libvorbis)
+ set(MEGA_LIBVORBIS vorbis-static)
+ set(MEGA_LIBVORBISFILE vorbisfile-static)
++register_module(TARGET vorbis-static)
++register_module(TARGET vorbisfile-static)
+ 
+ message(STATUS "-----------------------------------------------------")
+ message(STATUS "Configuring: libtheora ${MEGA_LIBTHEORA_VER}")
+ message(STATUS "-----------------------------------------------------")
+ add_subdirectory("libs/libtheora-${MEGA_LIBTHEORA_VER}" ${CMAKE_BINARY_DIR}/libtheora)
+ set(MEGA_LIBTHEORA theora-static)
++register_module(TARGET theora-static)
+ 
+ message(STATUS "-----------------------------------------------------")
+ message(STATUS "Configuring: mpg123 ${MEGA_MPG123_VER}")
+ message(STATUS "-----------------------------------------------------")
+ add_subdirectory("libs/mpg123-${MEGA_MPG123_VER}" ${CMAKE_BINARY_DIR}/mpg123)
+ set(MEGA_MPEG123 mpg123)
++register_module(TARGET mpg123)
+ 
+ message(STATUS "-----------------------------------------------------")
+ message(STATUS "Configuring: freetype ${MEGA_FREETYPE_VER}")
+ message(STATUS "-----------------------------------------------------")
+ add_subdirectory("libs/freetype-${MEGA_FREETYPE_VER}" ${CMAKE_BINARY_DIR}/freetype)
+ set(MEGA_FREETYPE freetype)
++register_module(TARGET freetype)
+ 
+ ## try compiling with native SDL, emscripten documentation says compatibility
+ ## changes have been made with the upstream source
+@@ -252,7 +294,7 @@ message(STATUS "Configuring: libmodplug ${MEGA_MODPLUG_VER}")
+ message(STATUS "-----------------------------------------------------")
+ add_subdirectory("libs/libmodplug-${MEGA_MODPLUG_VER}" ${CMAKE_BINARY_DIR}/libmodplug)
+ set(MEGA_MODPLUG modplug-static)
+-
++register_module(TARGET modplug-static)
+ 
+ ## See if there is a better option than using Lua PUC 5.1 in place of luajit for web
+ # LuaJIT
+-- 
+2.43.0
+
+
+From c3e1be9dde7004f8fbef5b5556c7b4ae758b4d46 Mon Sep 17 00:00:00 2001
+From: alexjgriffith <griffitaj@gmail.com>
+Date: Fri, 10 May 2024 07:27:44 -0400
+Subject: [PATCH 3/4] Updated to support emscripten 3.1.56
+
+---
+ CMakeLists.txt | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 0a58cb89..11261bdc 100755
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -169,6 +169,7 @@ include(CMakeParseArguments)
+ 
+ ## https://github.com/emscripten-core/emscripten/issues/11525
+ function(register_module)
++  if(EMSCRIPTEN AND NOT LOVEJS_COMPAT)
+     set(OPTIONS)
+     cmake_parse_arguments(
+             register_module
+@@ -183,8 +184,8 @@ function(register_module)
+         return()
+     endif()
+ 
+-    set(_targetLinkFlags "-s USE_PTHREADS=1")
+-    set(_targetCompilerFlags "-s USE_PTHREADS=1")
++    set(_targetLinkFlags "-s USE_PTHREADS=1 -fPIC")
++    set(_targetCompilerFlags "-s USE_PTHREADS=1 -fPIC")
+ 
+     if (register_module_LINKER_FLAGS)
+         set(_targetLinkFlags "${_targetLinkFlags} ${register_module_LINKER_FLAGS}")
+@@ -197,6 +198,7 @@ function(register_module)
+ 
+     unset(_targetLinkFlags)
+     unset(_targetCompilerFlags)
++    endif(EMSCRIPTEN AND NOT LOVEJS_COMPAT)
+ endfunction()
+ 
+ set(MEGA_ZLIB_VER "1.2.12")
+-- 
+2.43.0
+
+
+From f45552931a864e9fd278beee96c24da74d2da7f8 Mon Sep 17 00:00:00 2001
+From: alexjgriffith <griffitaj@gmail.com>
+Date: Mon, 13 May 2024 00:00:20 -0400
+Subject: [PATCH 4/4] Fixed Module race condition bumped to emscripten 3.1.59
+ and sdl 2.28.5
+
+---
+ CMakeLists.txt | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 11261bdc..d3fc5a0d 100755
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -276,14 +276,17 @@ register_module(TARGET freetype)
+ 
+ ## try compiling with native SDL, emscripten documentation says compatibility
+ ## changes have been made with the upstream source
+-if (NOT EMSCRIPTEN)
++
+   message(STATUS "-----------------------------------------------------")
+   message(STATUS "Configuring: SDL2 ${MEGA_SDL2_VER}")
+   message(STATUS "-----------------------------------------------------")
+   add_subdirectory("libs/SDL2" ${CMAKE_BINARY_DIR}/SDL2)
+-  set(MEGA_SDL2 SDL2)
++  set(MEGA_SDL2 SDL2-static)
+   set(MEGA_SDL2MAIN SDL2main)
+-
++  register_module(TARGET SDL2-static)
++  register_module(TARGET SDL2main)
++  
++if (NOT EMSCRIPTEN)  
+   message(STATUS "-----------------------------------------------------")
+   message(STATUS "Configuring: openal-soft ${MEGA_OPENAL_VER}")
+   message(STATUS "-----------------------------------------------------")
+-- 
+2.43.0
+
