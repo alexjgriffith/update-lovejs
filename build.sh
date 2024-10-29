@@ -14,4 +14,5 @@ git checkout $branch
 
 cd ../love.js/
 git checkout $branch
-./build_lovejs.sh ../megasource/ ../emsdk/
+
+./build_lovejs.sh ../../../megasource/ ../emsdk/
