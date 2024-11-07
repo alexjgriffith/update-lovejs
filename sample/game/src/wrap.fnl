@@ -6,7 +6,14 @@
 
 (local root (js-http.make :https://algg2024.alexjgriffith.com))
 
-(root:request "handle" "/example" "GET" "{}" "")
+(local shell (require :lib.stdio))
+
+(fn love.load []
+
+  (root:request "handle" "/example" "GET" "{}" "")
+
+  ;; (shell.start)
+  )
 
 (tset love.handlers :http_recieved
       (fn []

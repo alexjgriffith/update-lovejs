@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Change Me</title>
+    <script src = "consolewrapper.js"></script>
+    <!-- Load custom style sheet -->
+    <link rel="stylesheet" type="text/css" href="theme/love.css">
+  </head>
+  <body>
+    <center>
+      <div>
+        <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+        <canvas id="loadingCanvas" oncontextmenu="event.preventDefault()"
+                width="800" height="600"></canvas>
+      </div>
+    </center>
+
+    <script type='text/javascript'>
+
+      var __LOVE2D_lua_state_ptr = null;
+      var __LOVE2D_response_queue = {list:[], start:0, end:0, max:100};
+      function __LOVE2D_set_lua_state_ptr (ptr){
+          //console.log("Setting state pointer to: " + ptr);
+          __LOVE2D_lua_state_ptr = ptr;
+      }
+
+      function __LOVE2D_eval (str){
+          const stringToNewUTF8 = ModuleArgs.stringToNewUTF8;
+          ModuleArgs.__JS_eval(__LOVE2D_lua_state_ptr, stringToNewUTF8(str));
+      }
+
+      function __LOVE2D_response_queue_pop (){
+          const UTF8ToString = ModuleArgs.UTF8ToString;
+          const stringToNewUTF8 = ModuleArgs.stringToNewUTF8;          
+          let ret = stringToNewUTF8(__LOVE2D_response_queue.list[__LOVE2D_response_queue.start]);
+          __LOVE2D_response_queue.start += 1;
+          if (__LOVE2D_response_queue.start >= __LOVE2D_response_queue.max){
+              __LOVE2D_response_queue.start = 0;
+          }
+          return ret;
+      }
+
+      function __LOVE2D_response_queue_popable (){
+          if (__LOVE2D_response_queue.start == __LOVE2D_response_queue.end){
+              return 0;
+          }
+          else{
+              return 1;
+          }
+      }
+
+      
+      function __LOVE2D_http_request (ptr, handle, root, endpoint, action, headers, data) {
+          const UTF8ToString = ModuleArgs.UTF8ToString;
+          const stringToNewUTF8 = ModuleArgs.stringToNewUTF8;
+          if(false) {
+              console.log({ptr: ptr,
+                           path: UTF8ToString(root) + UTF8ToString(endpoint),
+                           handle: UTF8ToString(handle),
+                           endpoint: UTF8ToString(endpoint),
+                           action : UTF8ToString(action),
+                           headers: UTF8ToString(headers),
+                           data: UTF8ToString(data)})}
+          const path = UTF8ToString(root) + UTF8ToString(endpoint);
+          if (ptr == null){
+              return 1;
+          }
+          var xhttp = new XMLHttpRequest();
+          xhttp.onreadystatechange = function() {
+              if (this.readyState == 4 && this.status == 200) {
+                  // this creates a memory leak?
+                  //                                                  stringToNewUTF8(
+                                                      // JSON.encode({handle: handle,
+                                                      //              response: root,
+                                                      //              headers: endpoint}))
+                  // ModuleArgs.__JS_http_push_event(ptr,
+                  //                                 ModuleArgs.stringToNewUTF8(ModuleArgs.UTF8ToString(handle)),
+                  //                                 stringToNewUTF8(xhttp.responseText),
+                  //                                  stringToNewUTF8("{}"),
+                  //                                );
+                  __LOVE2D_response_queue.list[__LOVE2D_response_queue.end]=
+                      JSON.stringify({handle: UTF8ToString(handle),
+                                      response: xhttp.responseText,
+                                      headers: UTF8ToString(headers)});
+                  __LOVE2D_response_queue.end += 1;
+                  if (__LOVE2D_response_queue.end >= __LOVE2D_response_queue.max){
+                      __LOVE2D_response_queue.end = 0;
+                  }
+                  ModuleArgs.__JS_eval(__LOVE2D_lua_state_ptr,
+                                       "(love.event.push "+
+                                       UTF8ToString(handle) +
+                                       " " +
+                                       xhttp.responseText +
+                                       " " +
+                                       UTF8ToString(headers) +
+                                       ")"
+                                      );
+              }
+          };    
+          if (headers != null) {
+              Object.keys(JSON.parse(UTF8ToString(headers))).forEach(function(key, index) {
+                  headers[key] *= 2;
+              });
+          }    
+          if (action != null){
+              xhttp.open(UTF8ToString(action), path, true);
+    }
+    else {
+        xhttp.open('GET', path, true);
+    }
+    
+    if (data != null){
+        xhttp.send(UTF8ToString(data));
+    }
+    else {
+        xhttp.send();
+    }
+return 0;
+}
+     function goFullScreen(){
+         var canvas = document.getElementById("canvas");
+         if(canvas.requestFullScreen)
+             canvas.requestFullScreen();
+         else if(canvas.webkitRequestFullScreen)
+             canvas.webkitRequestFullScreen();
+         else if(canvas.mozRequestFullScreen)
+             canvas.mozRequestFullScreen();
+     }
+
+     function closeFullScreen() {
+         if (document.exitFullscreen) {
+             document.exitFullscreen();
+         } else if (document.webkitExitFullscreen) { /* Safari */
+             document.webkitExitFullscreen();
+         } else if (document.msExitFullscreen) { /* IE11 */
+             document.msExitFullscreen();
+         }
+     }
+
+     function toggleFullScreen(){
+         if((window.fullScreen) || /* firefox */
+            (window.innerWidth == screen.width &&  /* everything else */
+             window.innerHeight == screen.height)) {
+             closeFullScreen();
+         } else {
+             goFullScreen();
+         }
+     }
+     var loadingContext = document.getElementById('loadingCanvas').getContext('2d');
+     var complete = false;
+     function drawLoadingText(text, soFar, total) {
+         var canvas = loadingContext.canvas;
+         var ratio = complete ? 1 : 0;
+         if (soFar && total){
+             ratio = soFar / total
+         }
+         if (ratio == 1){
+             complete = true
+         }
+         //
+         loadingContext.fillStyle = "rgb(54,69,79)";
+         loadingContext.fillRect(0, 0, canvas.scrollWidth, canvas.scrollHeight);
+
+         loadingContext.font = '2em arial';
+         loadingContext.textAlign = 'center'
+         //
+         loadingContext.fillStyle = "rgb(240,234,214)";
+         loadingContext.fillText(text, canvas.scrollWidth / 2, (canvas.scrollHeight / 2) - 40);
+         //
+         loadingContext.beginPath();
+         loadingContext.strokeStyle = "rgb(240,234,214)";
+         loadingContext.rect((canvas.scrollWidth / 2) - 200,
+                             ( canvas.scrollHeight / 2) - 20,
+                             400,
+                             40
+             
+             
+         );
+         loadingContext.stroke();
+         loadingContext.beginPath();
+         loadingContext.rect((canvas.scrollWidth / 2) - 200,
+                             ( canvas.scrollHeight / 2) - 20,
+                             400 * ratio,
+                             40
+             
+             
+         );
+         loadingContext.fill();
+         loadingContext.font = '4em arial';
+         loadingContext.fillText("Change Me", canvas.scrollWidth / 2, canvas.scrollHeight / 4);
+         loadingContext.font = '2em arial';
+         loadingContext.fillText("0.1.0", canvas.scrollWidth / 2, (canvas.scrollHeight / 4 + 45));
+         loadingContext.font = '1em arial';
+         loadingContext.textAlign = 'left'
+         loadingContext.fillText("Powered By LÖVE", canvas.scrollWidth / 2 - 300, canvas.scrollHeight / 4 * 3);
+         loadingContext.textAlign = 'right'
+         loadingContext.fillText("Game By: Your Name", canvas.scrollWidth / 2 + 300, canvas.scrollHeight / 4 * 3);
+     }
+
+     window.onload = function () { window.focus(); };
+     window.onclick = function () { window.focus(); };
+
+     /* window.addEventListener("keydown", function(e) {
+      *     // space and arrow keys
+      *     if([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) {
+      *         e.preventDefault();
+      *     }
+      * }, false);
+      */
+     var ModuleArgs = {
+         arguments: ["game.love","web"],
+         thisProgram: "game.love",
+         INITIAL_MEMORY: 0,
+         printErr: console.error.bind(console),
+         canvas: (function() {
+             var canvas = document.getElementById('canvas');
+
+             // As a default initial behavior, pop up an alert when webgl context is lost. To make your
+             // application robust, you may want to override this behavior before shipping!
+             // See http://www.khronos.org/registry/webgl/specs/latest/1.0/#5.15.2
+             canvas.addEventListener("webglcontextlost", function(e) { alert('WebGL context lost. You will need to reload the page.'); e.preventDefault(); }, false);
+
+             return canvas;
+         })(),
+         setStatus: function(text, soFar, total) {
+             if (text) {
+                 drawLoadingText(text, soFar, total);
+             } else if (ModuleArgs.remainingDependencies === 0) {
+                 document.getElementById('loadingCanvas').style.display = 'none';
+                 document.getElementById('canvas').style.display = 'block';
+             }
+         },
+         totalDependencies: 0,
+         remainingDependencies: 0,
+         monitorRunDependencies: function(left) {
+             this.remainingDependencies = left;
+             this.totalDependencies = Math.max(this.totalDependencies, left);
+             ModuleArgs.setStatus(left ? 'Preparing... (' + (this.totalDependencies-left) + '/' + this.totalDependencies + ')' : 'All downloads complete.',
+                                  this.totalDependencies-left,
+                                  this.totalDependencies);
+         }
+     };
+     ModuleArgs.setStatus('Downloading...');
+     window.onerror = function(event) {
+         // TODO: do not warn on ok events like simulating an infinite loop or exitStatus
+         ModuleArgs.setStatus('Exception thrown, see JavaScript console');
+         ModuleArgs.setStatus = function(text) {
+             if (text) ModuleArgs.printErr('[post-exception status] ' + text);
+         };
+     };
+     
+     var applicationLoad = function(e) {
+         function preRunCallback (Module) {
+             loadPackage(Module, {"package_uuid":"b089b360-e752-4878-91c7-a71c0d3b80fa","remote_package_size":61794,"files":[{"filename":"/game.love","crunched":0,"start":0,"end":61794,"audio":false}]
+         })}
+         ModuleArgs.expectedDataFileDownloads = 0;
+         ModuleArgs.finishedDataFileDownloads = 0;
+         ModuleArgs['preRun'] = preRunCallback;
+         Love(ModuleArgs).then((x)=>{});
+     }
+    </script>
+    <script type="text/javascript" src="game.js"></script>
+    <script async type="text/javascript" src="love.js" onload="applicationLoad(this)"></script>
+
+    <footer>
+        <button onclick="goFullScreen();">Go Fullscreen</button>
+    </footer>
+  </body>
+</html>
