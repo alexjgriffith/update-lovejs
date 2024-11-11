@@ -229,7 +229,8 @@ var loadPackage = function(Module,metadata) {
           DataRequest.prototype.requests[files[i].filename].onload();
         }
         Module['removeRunDependency']('datafile_game.data');
-      };
+    };
+        
       Module['addRunDependency']('datafile_game.data');
 
       if (!Module.preloadResults) Module.preloadResults = {};

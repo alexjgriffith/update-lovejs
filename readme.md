@@ -11,6 +11,8 @@ Follow the steps below to update the love.js love branch and megasource forks.
 6. [ ] Create a patch as an artifact for love and megasource 
 
 
+https://coco.luajit.org/install.html
+
 ## Git Patch Basics
 Create a patch
 ``` bash
@@ -25,3 +27,4 @@ Apply a patch
 ``` bash
 git apply --verbose file.patch
 ```
+
