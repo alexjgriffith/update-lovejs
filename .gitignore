@@ -2,3 +2,18 @@ tmp
 *~
 \#*
 artifacts/*
+node_modules
+dist
+build
+build/*
+release
+megasource
+resources/love-*
+resources/release
+resources/compat
+resources/game.data
+resources/game.metadata
+# emacs version control
+\#*
+*\#
+*~

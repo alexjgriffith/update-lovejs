@@ -1,20 +1,24 @@
-BRANCH=emscripten-11.5
-EMCC_VERSION=2.0.0
-LOVE_VERSION=11.5
+MEGASOURCE=$(CURDIR)/megasource
+EMSDK=$(CURDIR)/emsdk
+
+BRANCH=js-lua-interface
+EMCC_VERSION=3.1.68
+LOVE_VERSION=115
+LOVEJS_VERSION=beta-1
 LOVE_HASH=6eb8d54
 MEGASOURCE_HASH=48811d0
 
 MEGASOURCE_PATCHNAME=megasource-lovejs-$(LOVE_VERSION)x$(EMCC_VERSION)v$(PATCH_VERSION)-$(MEGASOURCE_HASH).patch
 LOVE_PATCHNAME=love-lovejs-$(LOVE_VERSION)x$(EMCC_VERSION)v$(PATCH_VERSION)-$(LOVE_HASH).patch
 
-COMPAT_FILE_LOCATION=love.js/build/compat/
-RELEASE_FILE_LOCATION=love.js/build/release/
+compile:
+	./scripts/build.sh $(MEGASOURCE) $(EMSDK)
+
+release:
+	./scripts/release.sh $(LOVE_VERSION) $(LOVEJS_VERSION)
 
 .PHONY: patch
 patch: patch_megasource patch_love
-
-build:
-	./build.sh $(BRANCH) $(LOVE_VERSION) $(EMCC_VERSION)
 
 patch_megasource:
 	 ./patch.sh megasource $(BRANCH) $(MEGASOURCE_HASH) ../patches/$(MEGASOURCE_PATCHNAME)
