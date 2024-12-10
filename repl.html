@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>{{TITLE}}</title>
+  </head>
+  <body>
+
+    <iframe style="width: 100%; height: 300px; padding: 0px; margin: 0px"  allowtransparency="true" webkitallowfullscreen="true" mozallowfullscreen="true"
+            msallowfullscreen="true"
+            allow="autoplay; fullscreen *; geolocation; microphone; camera; midi; monetization; xr-spatial-tracking; gamepad; gyroscope; accelerometer; xr; cross-origin-isolated; web-share"
+            src="/love.html"
+            scrolling="no" allowfullscreen="true" frameborder="0" id="lovejs_game"></iframe>
+
+    <textarea style="display:block; width:100%;" id="output" rows="8"></textarea>
+    <input style="width: 100%;" type="text" id="input" rows="8"></input>
+    <script type='text/javascript'>
+      // loading state
+      {
+          let canvas = ocument.getElementById('lovejs_game').contentWindow.document.getElementById('canvas');
+          function statusUpdate (event){
+              var text = event.details;
+              if (text == 'All downloads complete.'){
+                  coverPage.style.display = 'none';
+              }
+              else {
+                  coverPage.style.display = 'block';
+              }
+              
+          }
+          canvas.addEventListener("love2dStatusUpdate", statusUpdate);
+          canvas.addEventListener("love2dStatusUpdate", stdout);
+      }
+      
+      // repl stuff
+      {
+          let input = document.getElementById("input");
+          keydown = function  (e){
+              console.log(e);
+              var key = e.key || e.which;
+              console.log(key);
+              console.log(input.value);
+              if (key == "Enter")
+              {
+                  if (input.value.length > 0){
+                      let love_send_event = document.getElementById('lovejs_game').contentWindow.love_send_event;
+                      love_send_event("eval", input.value, 0);
+                      input.value = "";
+                      return false;
+                  }
+              }
+          }
+          input.addEventListener("keydown", keydown)
+      }
+    </script>
+  </body>
+</html>
