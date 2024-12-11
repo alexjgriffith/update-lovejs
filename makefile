@@ -4,7 +4,7 @@ EMSDK=$(CURDIR)/emsdk
 BRANCH=js-lua-interface
 EMCC_VERSION=3.1.68
 LOVE_VERSION=115
-LOVEJS_VERSION=beta-1
+LOVEJS_VERSION=beta1
 LOVE_HASH=6eb8d54
 MEGASOURCE_HASH=48811d0
 
@@ -14,6 +14,7 @@ LOVE_PATCHNAME=love-lovejs-$(LOVE_VERSION)x$(EMCC_VERSION)v$(PATCH_VERSION)-$(LO
 compile:
 	./scripts/build.sh $(MEGASOURCE) $(EMSDK)
 
+.PHONY: release
 release:
 	./scripts/release.sh $(LOVE_VERSION) $(LOVEJS_VERSION)
 
