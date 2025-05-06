@@ -3,7 +3,7 @@
 MEGASOURCE=$1
 EMSDK=$2
 
-base=0
+base=1
 lua54=1
 
 source ${EMSDK}/emsdk_env.sh
