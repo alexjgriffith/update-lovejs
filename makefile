@@ -11,8 +11,14 @@ MEGASOURCE_HASH=48811d0
 MEGASOURCE_PATCHNAME=megasource-lovejs-$(LOVE_VERSION)x$(EMCC_VERSION)v$(PATCH_VERSION)-$(MEGASOURCE_HASH).patch
 LOVE_PATCHNAME=love-lovejs-$(LOVE_VERSION)x$(EMCC_VERSION)v$(PATCH_VERSION)-$(LOVE_HASH).patch
 
+compile-all:
+	./scripts/build.sh $(MEGASOURCE) $(EMSDK) "all"
+
 compile:
-	./scripts/build.sh $(MEGASOURCE) $(EMSDK)
+	./scripts/build.sh $(MEGASOURCE) $(EMSDK) "single"
+
+setup:
+	./scripts/setup.sh
 
 .PHONY: release
 release:

@@ -1,3 +1,4 @@
+#!/bin/bash
 ## Turn this into a makefile at some point
 BRANCH=$1
 LOVE_VERSION=$2
