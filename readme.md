@@ -13,11 +13,12 @@ Build the comparable single file version (useful for making sure everything is c
 make compile
 ```
 
-
 Build all release targets
 ```
 make compile-all
 ```
+
+Sometimes the compilation fails because lzip.a cannot be found. Restarting the compilation process fixes this issue.
 
 ## Updating Patches for LoveJS
 Follow the steps below to update the love.js love branch and megasource forks. 
