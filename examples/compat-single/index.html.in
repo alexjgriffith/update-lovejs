@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <link rel="stylesheet" href="https://code.cdn.mozilla.net/fonts/fira.css">
+         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <title>{{TITLE}}</title>
+    <style>
+      {{STYLE}}
+    </style>
+  </head>
+  <body style="margin:0px;" onload="applicationLoad()">
+    <center>
+      <div id="loading_container">
+        <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
+        <div id="loading">
+          <p>Loading&thinsp;<i id="blink">...</i></p>
+        </div>
+      </div>
+    </center>
+    <script type='text/javascript'>
+     var LoveState = {
+         game_file:
+         {{GAME_FILE}}
+         ,
+         
+         print: (function() {
+             var element = document.getElementById('output');
+          if (element) element.value = ''; // clear browser cache
+          return (...args) => {
+            var text = args.join(' ');
+            console.log(text);
+            if (element) {
+              element.value += text + "\n";
+              element.scrollTop = element.scrollHeight; // focus on bottom
+            }
+          };
+         })(),
+         arguments: [], // required 
+        canvas: (() => {
+          var canvas = document.getElementById('canvas');
+            canvas.addEventListener("webglcontextlost", (e) => { alert('WebGL context lost. You will need to reload the page.'); e.preventDefault(); }, false);
+          return canvas;
+        })(),
+          setStatus: (text) => {
+              const event = new CustomEvent("love2dStatusUpdate", {detail: text});
+              var canvas = document.getElementById("canvas");
+              canvas.dispatchEvent(event);
+              if(text=='All downloads complete.'){
+                  LoveState['canvas'].classList.remove('hidden');
+                  var loading = document.getElementById("loading");
+                  loading.classList.remove('hidden');
+              }
+          },
+        totalDependencies: 0,
+        monitorRunDependencies: (left) => {
+          this.totalDependencies = Math.max(this.totalDependencies, left);
+          LoveState.setStatus(left ? 'Preparing... (' + (this.totalDependencies-left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
+        }
+      };
+      LoveState.setStatus('Downloading...');
+      window.onerror = (event) => {
+        // TODO: do not warn on ok events like simulating an infinite loop or exitStatus
+        LoveState.setStatus('Exception thrown, see JavaScript console');
+        // spinnerElement.style.display = 'none';
+        LoveState.setStatus = (text) => {
+          if (text) console.error('[post-exception status] ' + text);
+        };
+      };
+      function applicationLoad (e) {
+          Love(LoveState);
+          const love_send_event = LoveState.love_send_event;
+      }
+
+     try {
+         
+         {{USER_SCRIPT}}
+         
+         plugin(LoveState)
+     }
+     catch {
+         console.log("To add custom JS add a function plugin to script.js")
+     }
+     
+      {{SCRIPT}}
+      
+</script>
+  </body>
+</html>

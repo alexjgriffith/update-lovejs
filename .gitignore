@@ -7,7 +7,6 @@ dist
 build
 build/*
 release
-megasource
 resources/love-*
 resources/release
 resources/compat
@@ -17,3 +16,4 @@ resources/game.metadata
 \#*
 *\#
 *~
+examples/*/build

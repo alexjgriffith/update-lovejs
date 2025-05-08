@@ -1,0 +1,79 @@
+#blink {
+    /* border-right: .5em solid #475f14; */
+    -moz-animation: throb 1s infinite;
+    -webkit-animation: throb 1s infinite;
+    animation: throb 1s infinite;
+}
+
+#loading_container{
+    width:1280px;
+    height:720px;
+    text-align:center;
+    background-color: #eef5df;
+}
+
+#loading {
+    display: inline-block;
+    vertical-align: middle;
+    line-height: normal;
+    font-size: 2em;
+}
+
+.hidden {
+         visibility: hidden;
+         width: 0px;
+         height: 0px;
+         position:absolute;
+         left:0px;
+         top:0px;
+}
+
+body {
+    font-family: "Fira Sans";
+    color: #1a1a1a;
+    height:100%;
+    margin:0px;
+}
+
+
+html {
+    line-height:1.5;
+    color: #1a1a1a;
+    background-color: #fdfdfd;
+}
+
+#canvas {
+    display: block;
+    position: absolute;
+    z-index:10;
+}
+
+@-moz-keyframes throb {
+    0%,100% {
+        opacity: 0;
+    }
+    
+    50% {
+        opacity: 1;
+    }
+}
+
+@-webkit-keyframes throb {
+    0%,100% {
+        opacity: 0;
+    }
+    
+    50% {
+        opacity: 1;
+    }
+}
+
+@keyframes throb {
+    0%, 100% {
+        opacity: 0;
+    }
+    
+    50% {
+        opacity: 1;
+    }
+}
