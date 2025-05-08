@@ -7,7 +7,7 @@ make -C ../../ compile
 
 Build the game found in src/
 ```
-build.sh
+./build.sh
 ```
 
 The output can be found in `build/index.html`
