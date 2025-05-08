@@ -2,7 +2,14 @@ The purpose of this repo is to hold lovejs wasm and js artifacts and patches.
 
 ## Building LoveJS
 
-Update emsdk
+Clone the repo
+```
+git clone --recursive https://github.com/alexjgriffith/update-lovejs.git
+```
+
+
+
+Update emsdk, checkout the target branches for love and megasource.
 
 ``` bash
 make setup
