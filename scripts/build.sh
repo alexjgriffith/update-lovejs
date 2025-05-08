@@ -8,17 +8,17 @@ base=1
 lua54=0
 single=0
 
-if [[ $TARGET = "single"]]
+if [[ "$TARGET" = "single" ]]
 then
    base=0
    lua54=0
    single=1
-elif [[ $TARGET = "lua54"]]
+elif [[ "$TARGET" = "lua54" ]]
 then
    base=0
    lua54=1
    single=0
-elif [[ $TARGET = "all"]]
+elif [[ "$TARGET" = "all" ]]
 then
    base=1
    lua54=1
@@ -27,14 +27,15 @@ fi
    
 source ${EMSDK}/emsdk_env.sh
 
-if [[ $single = 1]]
+if [[ $single = 1 ]]
+then
    mkdir -p  build/compat-single
    (
         cd build/compat-single
         emcmake cmake ${MEGASOURCE} -DLOVE_JIT=0 -DCMAKE_BUILD_TYPE=Release -DLOVEJS_COMPAT=1 -DSEXPORT_ALL=1 -DSMAIN_MODULE=1 -DSERROR_ON_UNDEFINED_SYMBOLS=0 -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DLOVEJS_SINGLE=ON
         emmake make -j 8
     )
-then
+fi
     
 
 ## Lua 5.1 builds
