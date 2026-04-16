@@ -1,0 +1,94 @@
+Known good 3.1.68 (seems to work with 3.1.74 too)
+
+https://github.com/emscripten-core/emscripten/blob/main/ChangeLog.md
+
+** 4.0.0
+From the changelog:
+  - --post-js files will now be delayed until after module creation and after main runs.
+This means the API is not available until AFTER Love has been run...
+
+The game stills tarts though, meaning that FS.createDataFile has run?
+
+#+BEGIN_SRC error
+Uncaught TypeError: love_send_event is not a function
+    at HTMLCanvasElement.<anonymous> (index.html?repl=true:339:55)
+    at love_receive_event (index.html?repl=true:456:1402)
+#+END_SRC
+
+Creating the module is now async, so perhaps we are sending the singnal before it is finalized.
+
+Try doing async await when we create the love module?
+
+Async function with an await works, but now passing the cose using love_send event is aborting (wraps JS_send event)
+
+We can receive info from lua -> js fine (we recieve game start event)
+
+When sending the response it crashes.
+
+Double check the SDL event system to see if there were any changes with 
+
+The error seems to be with SDL_free on 4.0.0+, may be a flag issue
+
+#+BEGIN_SRC error
+index.html?repl=true:456 Aborted(native code called abort())
+abort @ index.html?repl=true:456
+__abort_js @ index.html?repl=true:456
+$func6191 @ 016a95f6:0x3883fe
+$free @ 016a95f6:0x398631
+$func277 @ 016a95f6:0x6642d
+$func1113 @ 016a95f6:0xc21ba
+$func1112 @ 016a95f6:0xbfcc6
+$func1125 @ 016a95f6:0xc293c
+$func5355 @ 016a95f6:0x31ab63
+$func5647 @ 016a95f6:0x332fdc
+$func5357 @ 016a95f6:0x31af38
+$func5303 @ 016a95f6:0x3171dc
+invoke_vii @ index.html?repl=true:456
+$func5351 @ 016a95f6:0x31a0b1
+$func5360 @ 016a95f6:0x31b1bd
+$func5302 @ 016a95f6:0x31719e
+$func5408 @ 016a95f6:0x31dfe7
+$func5355 @ 016a95f6:0x31ab63
+$func5647 @ 016a95f6:0x332fdc
+$func5359 @ 016a95f6:0x31b181
+invoke_vii @ index.html?repl=true:456
+$func5351 @ 016a95f6:0x31a0b1
+$func5358 @ 016a95f6:0x31b015
+$func178 @ 016a95f6:0x6060c
+iterFunc @ index.html?repl=true:456
+callUserCallback @ index.html?repl=true:456
+runIter @ index.html?repl=true:456
+MainLoop_runner @ index.html?repl=true:456
+requestAnimationFrame
+requestAnimationFrame @ index.html?repl=true:456
+MainLoop_scheduler_rAF @ index.html?repl=true:456
+MainLoop_runner @ index.html?repl=true:456
+requestAnimationFrame
+requestAnimationFrame @ index.html?repl=true:456
+MainLoop_scheduler_rAF @ index.html?repl=true:456
+setMainLoop @ index.html?repl=true:456
+_emscripten_set_main_loop_arg @ index.html?repl=true:456
+$__main_argc_argv @ 016a95f6:0x60564
+(anonymous) @ index.html?repl=true:456
+callMain @ index.html?repl=true:456
+doRun @ index.html?repl=true:456
+(anonymous) @ index.html?repl=true:456
+setTimeout
+run @ index.html?repl=true:456
+(anonymous) @ index.html?repl=true:456
+await in (anonymous)
+Love @ index.html?repl=true:469
+loveLoad @ index.html?repl=true:312
+onload @ index.html?repl=true:252
+index.html?repl=true:456 Uncaught RuntimeError: Aborted(native code called abort())
+    at abort (index.html?repl=true:456:15091)
+    at __abort_js (index.html?repl=true:456:7967015)
+    at 016a95f6:0x3883fe
+    at 016a95f6:0x398631
+    at 016a95f6:0x6642d
+    at 016a95f6:0xc21ba
+    at 016a95f6:0x332fdc
+    at 016a95f6:0xbfcc6
+    at 016a95f6:0xc293c
+    at 016a95f6:0x31ab63
+#+END_SRC
