@@ -92,3 +92,7 @@ index.html?repl=true:456 Uncaught RuntimeError: Aborted(native code called abort
     at 016a95f6:0xc293c
     at 016a95f6:0x31ab63
 #+END_SRC
+
+
+The error with SDL_free occures again when bumping up to 5.0.3
+We removed "Relocatable" and other assocaited libraries
