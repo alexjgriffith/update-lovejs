@@ -29,10 +29,10 @@ source ${EMSDK}/emsdk_env.sh
 
 if [[ $single = 1 ]]
 then
-   mkdir -p  build/compat-single
+   mkdir -p  build/compat ##-single
    (
-        cd build/compat-single
-        emcmake cmake ${MEGASOURCE} -DLOVE_JIT=0 -DCMAKE_BUILD_TYPE=Release -DLOVEJS_COMPAT=1 -DSEXPORT_ALL=1 -DSMAIN_MODULE=1 -DSERROR_ON_UNDEFINED_SYMBOLS=0 -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DLOVEJS_SINGLE=ON
+        cd build/compat ##-single
+        emcmake cmake ${MEGASOURCE} -DLOVE_JIT=0 -DCMAKE_BUILD_TYPE=Release -DLOVEJS_COMPAT=1 -DSEXPORT_ALL=1 -DSMAIN_MODULE=1 -DSERROR_ON_UNDEFINED_SYMBOLS=0 -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_C_FLAGS="-fwasm-exceptions" -DCMAKE_EXE_LINKER_FLAGS="-fwasm-exceptions" ## -DLOVEJS_SINGLE=ON
         emmake make -j 8
     )
 fi

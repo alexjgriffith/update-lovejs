@@ -96,3 +96,17 @@ index.html?repl=true:456 Uncaught RuntimeError: Aborted(native code called abort
 
 The error with SDL_free occures again when bumping up to 5.0.3
 We removed "Relocatable" and other assocaited libraries
+
+
+** 5.0.6
+js is not being exported, websockets probably isn't either
+
+fixed by replacing EMSCRIPTEN macro with LOVE_EMSCRIPTEN
+
+** Exception handling
+freetype and lua do not compile with the "-fwasm-exceptions" and "-sSUPPORT_LONGJMP=wasm" fields needed
+to get wasm exception handling working.
+
+This is discussed in the emscripten issue 21109, the fix was to add “-DCMAKE_C_FLAGS=’-fwasm-exceptions‘”
+and -DCMAKE_EXE_LINKER_FLAGS="-fwasm-exceptions"  
+https://github.com/emscripten-core/emscripten/issues/21109
