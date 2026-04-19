@@ -29,10 +29,10 @@ source ${EMSDK}/emsdk_env.sh
 
 if [[ $single = 1 ]]
 then
-   mkdir -p  build/compat ##-single
+   mkdir -p  build/release ##compat ##-single
    (
-        cd build/compat ##-single
-        emcmake cmake ${MEGASOURCE} -DLOVE_JIT=0 -DCMAKE_BUILD_TYPE=Release -DLOVEJS_COMPAT=1 -DSEXPORT_ALL=1 -DSMAIN_MODULE=1 -DSERROR_ON_UNDEFINED_SYMBOLS=0 -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_C_FLAGS="-fwasm-exceptions" -DCMAKE_EXE_LINKER_FLAGS="-fwasm-exceptions" ## -DLOVEJS_SINGLE=ON
+        cd build/release ##compat ##-single
+        emcmake cmake ${MEGASOURCE} -DLOVE_JIT=0 -DCMAKE_BUILD_TYPE=Release -DSEXPORT_ALL=1 -DSMAIN_MODULE=1 -DSERROR_ON_UNDEFINED_SYMBOLS=0 -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_C_FLAGS="-fwasm-exceptions" -DCMAKE_EXE_LINKER_FLAGS="-fwasm-exceptions" ## -DLOVEJS_SINGLE=ON -DLOVEJS_COMPAT=1
         emmake make -j 8
     )
 fi
@@ -44,25 +44,25 @@ then
     mkdir -p build/release build/release-single build/compat build/compat-single
     (
         cd build/release
-        emcmake cmake ${MEGASOURCE} -DLOVE_JIT=0 -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+        emcmake cmake ${MEGASOURCE} -DLOVE_JIT=0 -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_C_FLAGS="-fwasm-exceptions" -DCMAKE_EXE_LINKER_FLAGS="-fwasm-exceptions"
         emmake make -j 8
     )
     
     (
         cd build/release-single
-        emcmake cmake ${MEGASOURCE} -DLOVE_JIT=0 -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DLOVEJS_SINGLE=ON
+        emcmake cmake ${MEGASOURCE} -DLOVE_JIT=0 -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DLOVEJS_SINGLE=ON -DCMAKE_C_FLAGS="-fwasm-exceptions" -DCMAKE_EXE_LINKER_FLAGS="-fwasm-exceptions"
         emmake make -j 8 
     )
 
     (
         cd build/compat
-        emcmake cmake ${MEGASOURCE} -DLOVE_JIT=0 -DCMAKE_BUILD_TYPE=Release -DLOVEJS_COMPAT=1 -DSEXPORT_ALL=1 -DSMAIN_MODULE=1 -DSERROR_ON_UNDEFINED_SYMBOLS=0 -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+        emcmake cmake ${MEGASOURCE} -DLOVE_JIT=0 -DCMAKE_BUILD_TYPE=Release -DLOVEJS_COMPAT=1 -DSEXPORT_ALL=1 -DSMAIN_MODULE=1 -DSERROR_ON_UNDEFINED_SYMBOLS=0 -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_C_FLAGS="-fwasm-exceptions" -DCMAKE_EXE_LINKER_FLAGS="-fwasm-exceptions"
         emmake make -j 8
     ) 
     
     (
         cd build/compat-single
-        emcmake cmake ${MEGASOURCE} -DLOVE_JIT=0 -DCMAKE_BUILD_TYPE=Release -DLOVEJS_COMPAT=1 -DSEXPORT_ALL=1 -DSMAIN_MODULE=1 -DSERROR_ON_UNDEFINED_SYMBOLS=0 -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DLOVEJS_SINGLE=ON
+        emcmake cmake ${MEGASOURCE} -DLOVE_JIT=0 -DCMAKE_BUILD_TYPE=Release -DLOVEJS_COMPAT=1 -DSEXPORT_ALL=1 -DSMAIN_MODULE=1 -DSERROR_ON_UNDEFINED_SYMBOLS=0 -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DLOVEJS_SINGLE=ON -DCMAKE_C_FLAGS="-fwasm-exceptions" -DCMAKE_EXE_LINKER_FLAGS="-fwasm-exceptions"
         emmake make -j 8
     )
 fi
@@ -75,25 +75,25 @@ mkdir -p build/release-lua54 build/release-single-lua54 build/compat-lua54 build
 
 (
   cd build/release-lua54
-  emcmake cmake ${MEGASOURCE} -DLOVE_JIT=0 -DLUA_54=1 -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+  emcmake cmake ${MEGASOURCE} -DLOVE_JIT=0 -DLUA_54=1 -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_C_FLAGS="-fwasm-exceptions" -DCMAKE_EXE_LINKER_FLAGS="-fwasm-exceptions"
   emmake make -j 8
 )
 
 (
   cd build/release-single-lua54
-  emcmake cmake ${MEGASOURCE} -DLOVE_JIT=0 -DLUA_54=1 -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DLOVEJS_SINGLE=ON
+  emcmake cmake ${MEGASOURCE} -DLOVE_JIT=0 -DLUA_54=1 -DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DLOVEJS_SINGLE=ON -DCMAKE_C_FLAGS="-fwasm-exceptions" -DCMAKE_EXE_LINKER_FLAGS="-fwasm-exceptions"
   emmake make -j 8 
 )
 
 (
   cd build/compat-lua54
-  emcmake cmake ${MEGASOURCE} -DLOVE_JIT=0 -DLUA_54=1 -DCMAKE_BUILD_TYPE=Release -DLOVEJS_COMPAT=1 -DSEXPORT_ALL=1 -DSMAIN_MODULE=1 -DSERROR_ON_UNDEFINED_SYMBOLS=0 -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+  emcmake cmake ${MEGASOURCE} -DLOVE_JIT=0 -DLUA_54=1 -DCMAKE_BUILD_TYPE=Release -DLOVEJS_COMPAT=1 -DSEXPORT_ALL=1 -DSMAIN_MODULE=1 -DSERROR_ON_UNDEFINED_SYMBOLS=0 -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_C_FLAGS="-fwasm-exceptions" -DCMAKE_EXE_LINKER_FLAGS="-fwasm-exceptions"
   emmake make -j 8
 ) 
 
 (
   cd build/compat-single-lua54
-  emcmake cmake ${MEGASOURCE} -DLOVE_JIT=0 -DLUA_54=1 -DCMAKE_BUILD_TYPE=Release -DLOVEJS_COMPAT=1 -DSEXPORT_ALL=1 -DSMAIN_MODULE=1 -DSERROR_ON_UNDEFINED_SYMBOLS=0 -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DLOVEJS_SINGLE=ON
+  emcmake cmake ${MEGASOURCE} -DLOVE_JIT=0 -DLUA_54=1 -DCMAKE_BUILD_TYPE=Release -DLOVEJS_COMPAT=1 -DSEXPORT_ALL=1 -DSMAIN_MODULE=1 -DSERROR_ON_UNDEFINED_SYMBOLS=0 -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DLOVEJS_SINGLE=ON -DCMAKE_C_FLAGS="-fwasm-exceptions" -DCMAKE_EXE_LINKER_FLAGS="-fwasm-exceptions"
   emmake make -j 8
 ) 
 fi
