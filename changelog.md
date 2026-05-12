@@ -1,3 +1,7 @@
+## Beta2.3 2026-05-11
+- Save file location set to /home/web_user/savedir/
+- Added module web.sqlite for sqlite3 support
+
 ## Beta2 2026-04-17
 - Bumped empscripten to 5.0.6
 - Compiled using wasm exceptions (should no longer hard crash on file based errors)
